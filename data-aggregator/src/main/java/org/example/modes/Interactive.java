@@ -8,6 +8,8 @@ import org.example.cli.Menu;
 import org.example.exceptions.*;
 import org.example.model.*;
 import org.example.output.DataSaver;
+import org.example.output.DataSaverCsv;
+import org.example.output.DataSaverJson;
 import org.example.service.ApiService;
 
 import java.io.IOException;
@@ -47,15 +49,20 @@ public class Interactive {
 
             String fileName = menu.getFileName();
 
-            DataSaver saver = new DataSaver();
-            saver.save(record, fileName + "." + format.getFormat(), format, fileMode);
+            DataSaver saver = switch (format) {
+                case JSON -> new DataSaverJson();
+                case CSV -> new DataSaverCsv();
+            };
+
+            saver.save(record, fileName + "." + format.getFormat(), fileMode);
             boolean read = menu.wantToViewFile();
             if (read) {
                 ReadMode readMode = menu.selectReadMode();
                 if (readMode == ReadMode.FULL) {
                     saver.read(fileName + "." + format.getFormat(), null);
                 } else {
-                    saver.read(fileName + "." + format.getFormat(), apiType.getCodeName());
+                    ApiType readApiType = menu.selectApi();
+                    saver.read(fileName + "." + format.getFormat(), readApiType.getCodeName());
                 }
             }
 

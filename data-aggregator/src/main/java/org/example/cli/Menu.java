@@ -5,7 +5,7 @@ import org.example.model.*;
 
 import java.util.Scanner;
 
-public class Menu implements AutoCloseable {
+public class Menu {
     private final Scanner scanner;
 
     public Menu() {
@@ -100,7 +100,6 @@ public class Menu implements AutoCloseable {
         return scanner.nextLine().trim().equalsIgnoreCase("y");
     }
 
-    @Override
     public void close() {
         scanner.close();
     }

@@ -13,11 +13,16 @@ import org.example.model.ApiType;
 import org.example.model.FileFormat;
 import org.example.model.FileMode;
 import org.example.output.DataSaver;
+import org.example.output.DataSaverCsv;
+import org.example.output.DataSaverJson;
 import org.example.service.ApiService;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.example.model.FileFormat.CSV;
+import static org.example.model.FileFormat.JSON;
 
 public class Auto {
     private static final String DEFAULT_FILE_NAME = "result";
@@ -57,12 +62,16 @@ public class Auto {
 
             List<ApiRecord> allRecords = getApiRecords(apiTypes);
 
-            DataSaver saver = new DataSaver(); 
+            DataSaver saver = switch (format) {
+                case JSON -> new DataSaverJson();
+                case CSV -> new DataSaverCsv();
+            };
+
             for (int i = 0; i < allRecords.size(); i++) {
                 if (i > 0) {
-                    saver.save(allRecords.get(i), fileName, format, FileMode.APPEND);
+                    saver.save(allRecords.get(i), fileName, FileMode.APPEND);
                 } else {
-                    saver.save(allRecords.get(i), fileName, format, FileMode.CREATE);
+                    saver.save(allRecords.get(i), fileName, FileMode.CREATE);
                 }
             }
 

@@ -10,7 +10,9 @@ import java.io.IOException;
 
 public class Main {
     public static void main(String[] args) {
-        try (Menu menu = new Menu()) {
+        Menu menu = new Menu();
+
+        try {
             RunMode mode = menu.selectRunMode();
             if (mode == RunMode.AUTO) {
                 Auto.runAuto(args);
@@ -29,6 +31,8 @@ public class Main {
         } catch (SavingCsvException e) {
             System.err.println("Saving to CSV error: " + e.getMessage());
             System.exit(1);
+        } finally {
+            menu.close();
         }
     }
 }

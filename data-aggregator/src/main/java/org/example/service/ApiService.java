@@ -15,6 +15,7 @@ import java.util.Objects;
 
 public class ApiService {
     private final HttpClient httpClient;
+    private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(60);
 
     public ApiService() {
         this.httpClient = HttpClient.newBuilder()
@@ -33,7 +34,7 @@ public class ApiService {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
-                .timeout(Duration.ofSeconds(600))
+                .timeout(DEFAULT_TIMEOUT)
                 .build();
 
         HttpResponse<String> response;
