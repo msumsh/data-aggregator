@@ -1,8 +1,10 @@
 package org.example;
 
 import org.example.cli.Menu;
-import org.example.exceptions.*;
-import org.example.model.*;
+import org.example.exceptions.data.SavingCsvException;
+import org.example.exceptions.data.SavingJsonException;
+import org.example.exceptions.input.InvalidUserInputException;
+import org.example.model.modes.RunMode;
 import org.example.modes.Auto;
 import org.example.modes.Interactive;
 
@@ -30,6 +32,9 @@ public class Main {
             System.exit(1);
         } catch (SavingCsvException e) {
             System.err.println("Saving to CSV error: " + e.getMessage());
+            System.exit(1);
+        }  catch (InterruptedException e) {
+            System.err.println("Interrupted error: " + e.getMessage());
             System.exit(1);
         } finally {
             menu.close();

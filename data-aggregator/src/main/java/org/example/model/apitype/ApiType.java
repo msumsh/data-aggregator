@@ -1,4 +1,4 @@
-package org.example.model;
+package org.example.model.apitype;
 
 public enum ApiType {
     WEATHER("Weather", "open_meteo_api"),

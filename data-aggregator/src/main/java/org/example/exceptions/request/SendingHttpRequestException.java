@@ -1,4 +1,4 @@
-package org.example.exceptions;
+package org.example.exceptions.request;
 
 public class SendingHttpRequestException extends Exception {
     public SendingHttpRequestException(String message) {

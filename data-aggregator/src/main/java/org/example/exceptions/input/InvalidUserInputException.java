@@ -1,4 +1,4 @@
-package org.example.exceptions;
+package org.example.exceptions.input;
 
 public class InvalidUserInputException extends Exception {
     public InvalidUserInputException(String message) {

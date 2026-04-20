@@ -1,6 +1,7 @@
-package org.example.api;
+package org.example.api.types;
 
-import org.example.model.ApiType;
+import org.example.api.ApiSource;
+import org.example.model.apitype.ApiType;
 
 import java.util.HashMap;
 import java.util.Map;

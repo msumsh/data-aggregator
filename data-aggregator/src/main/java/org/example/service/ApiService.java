@@ -1,8 +1,8 @@
 package org.example.service;
 
 import org.example.api.ApiSource;
-import org.example.exceptions.InvalidResponseException;
-import org.example.exceptions.SendingHttpRequestException;
+import org.example.exceptions.request.InvalidResponseException;
+import org.example.exceptions.request.SendingHttpRequestException;
 import org.example.model.ApiRecord;
 
 import java.io.IOException;
@@ -23,10 +23,6 @@ public class ApiService {
                 .build();
     }
 
-    public ApiService(HttpClient httpClient) {
-        this.httpClient = httpClient;
-    }
-
     public ApiRecord fetchData(ApiSource source) throws InvalidResponseException, SendingHttpRequestException, IOException {
         Objects.requireNonNull(source, "ApiSource cannot be null");
         String url = source.buildUrl();
@@ -34,6 +30,7 @@ public class ApiService {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
+                .header("User-Agent", "CourseProject")
                 .timeout(DEFAULT_TIMEOUT)
                 .build();
 

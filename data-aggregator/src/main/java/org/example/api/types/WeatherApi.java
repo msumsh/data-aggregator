@@ -1,12 +1,13 @@
-package org.example.api;
+package org.example.api.types;
 
-import org.example.model.ApiType;
+import org.example.api.ApiSource;
+import org.example.model.apitype.ApiType;
 import java.util.HashMap;
 import java.util.Map;
 
 public class WeatherApi extends ApiSource {
     public WeatherApi() {
-        super("https://api.met.no/weatherapi/locationforecast/2.0/complete",
+        super("https://api.met.no/weatherapi/locationforecast/2.0/compact",
                 ApiType.WEATHER.getCodeName());
     }
 

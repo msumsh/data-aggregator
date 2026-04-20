@@ -22,7 +22,7 @@ public abstract class ApiSource {
         return this.baseUrl;
     }
 
-    protected String getName() {
+    public String getName() {
         return this.name;
     }
 

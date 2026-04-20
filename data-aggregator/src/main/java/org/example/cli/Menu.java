@@ -1,8 +1,15 @@
 package org.example.cli;
 
-import org.example.exceptions.InvalidUserInputException;
-import org.example.model.*;
+import org.example.exceptions.input.InvalidUserInputException;
+import org.example.model.apitype.ApiType;
+import org.example.model.format.FileFormat;
+import org.example.model.modes.FileMode;
+import org.example.model.modes.PollingMode;
+import org.example.model.modes.ReadMode;
+import org.example.model.modes.RunMode;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 
 public class Menu {
@@ -32,6 +39,10 @@ public class Menu {
         return selectEnum("read mode", ReadMode.class, "invalid read mode");
     }
 
+    public PollingMode selectPollingMode() throws InvalidUserInputException {
+        return selectEnum("polling mode", PollingMode.class, "invalid polling mode");
+    }
+
     private <T extends Enum<T>> T selectEnum(String title, Class<T> enumClass, String errorMsg)
             throws InvalidUserInputException {
 
@@ -39,7 +50,7 @@ public class Menu {
         T[] values = enumClass.getEnumConstants();
         printOptions(values);
 
-        int choice = chooseOption(values.length, errorMsg);
+        int choice = (int) chooseNumber(values.length, 1, errorMsg);
 
         return values[choice - 1];
     }
@@ -52,7 +63,7 @@ public class Menu {
         System.out.println("Enter the number...");
     }
 
-    private int chooseOption(int size, String msg) throws InvalidUserInputException {
+    private long chooseNumber(long size, long minNum, String msg) throws InvalidUserInputException {
         int attempts = 3;
 
         while (attempts > 0) {
@@ -63,10 +74,10 @@ public class Menu {
                 continue;
             }
 
-            int choice = scanner.nextInt();
+            long choice = scanner.nextInt();
             scanner.nextLine();
 
-            if (choice < 1 || choice > size) {
+            if (choice < minNum || choice > size) {
                 attempts--;
                 System.out.println(msg + " Attempts left: " + attempts);
             } else {
@@ -88,16 +99,45 @@ public class Menu {
         return fileName;
     }
 
-    public boolean wantToContinue() {
-        System.out.println("Do you want to continue? (y/n)");
+    public boolean wantToDo(String msg) {
+        System.out.println(msg + " (y/n):");
 
         return scanner.nextLine().trim().equalsIgnoreCase("y");
     }
 
-    public boolean wantToViewFile() {
-        System.out.print("\nDo you want to read the file? (y/n): ");
+    public int getThreadCount() throws InvalidUserInputException {
+        System.out.print("\nMax parallel threads (n >= 1): ");
+        return (int) chooseNumber(100, 1, "invalid thread count");
+    }
 
-        return scanner.nextLine().trim().equalsIgnoreCase("y");
+    public long getIntervalSeconds() throws InvalidUserInputException {
+        System.out.print("Polling interval in seconds (t >= 0): ");
+
+        return chooseNumber(Long.MAX_VALUE, 0, "invalid interval");
+    }
+
+    public List<ApiType> selectMultipleApis() throws InvalidUserInputException {
+        System.out.println("\nSelect APIs");
+
+        ApiType[] values = ApiType.values();
+        printOptions(values);
+        System.out.println("Example: 1 3");
+
+        String input = scanner.nextLine().trim();
+        List<ApiType> apis = new ArrayList<>();
+        for (String part : input.split(" ")) {
+            try {
+                int idx = Integer.parseInt(part.trim()) - 1;
+                if (idx < 0 || idx >= values.length) {
+                    throw new InvalidUserInputException("Invalid API number: " + (idx + 1));
+                }
+                apis.add(values[idx]);
+            } catch (NumberFormatException e) {
+                throw new InvalidUserInputException("Invalid API number");
+            }
+        }
+        if (apis.isEmpty()) throw new InvalidUserInputException("No APIs selected");
+        return apis;
     }
 
     public void close() {

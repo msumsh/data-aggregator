@@ -1,28 +1,25 @@
 package org.example.modes;
 
 import org.example.api.ApiSource;
-import org.example.api.CountriesApi;
-import org.example.api.MuseumApi;
-import org.example.api.WeatherApi;
-import org.example.exceptions.InvalidResponseException;
-import org.example.exceptions.SavingCsvException;
-import org.example.exceptions.SavingJsonException;
-import org.example.exceptions.SendingHttpRequestException;
+import org.example.concurrent.PollService;
+import org.example.exceptions.request.InvalidResponseException;
+import org.example.exceptions.data.SavingCsvException;
+import org.example.exceptions.data.SavingJsonException;
+import org.example.exceptions.request.SendingHttpRequestException;
 import org.example.model.ApiRecord;
-import org.example.model.ApiType;
-import org.example.model.FileFormat;
-import org.example.model.FileMode;
+import org.example.model.apitype.ApiType;
+import org.example.model.format.FileFormat;
+import org.example.model.modes.FileMode;
+import org.example.model.factories.ApiFactory;
+import org.example.model.factories.SaverFactory;
 import org.example.output.DataSaver;
-import org.example.output.DataSaverCsv;
-import org.example.output.DataSaverJson;
 import org.example.service.ApiService;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-
-import static org.example.model.FileFormat.CSV;
-import static org.example.model.FileFormat.JSON;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class Auto {
     private static final String DEFAULT_FILE_NAME = "result";
@@ -30,8 +27,11 @@ public class Auto {
     public static void runAuto(String[] args) throws
             SavingJsonException,
             SavingCsvException,
-            IOException {
-        if (args.length >= 2) {
+            IOException,
+            InterruptedException {
+        if (args.length < 2) {
+            throw new IllegalArgumentException("Not enough arguments");
+        } else {
             String[] apiNames = args[0].toLowerCase().split(",");
             List<ApiType> apiTypes = new ArrayList<>();
 
@@ -58,40 +58,82 @@ public class Auto {
             }
             System.out.println("Saving to " + format.getFormat());
 
+            int threads;
+            long interval;
+            try {
+                threads = args.length >= 3 ? Integer.parseInt(args[2]) : 1;
+                interval = args.length >= 4 ? Long.parseLong(args[3]) : 0;
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Threads and interval must be the numbers");
+            }
+
+            long duration = getDuration(args, threads, interval);
+
             String fileName = DEFAULT_FILE_NAME + "." + format.getFormat();
 
-            List<ApiRecord> allRecords = getApiRecords(apiTypes);
+            DataSaver saver = SaverFactory.newSaver(format);
 
-            DataSaver saver = switch (format) {
-                case JSON -> new DataSaverJson();
-                case CSV -> new DataSaverCsv();
-            };
+            ApiService service = new ApiService();
 
-            for (int i = 0; i < allRecords.size(); i++) {
-                if (i > 0) {
-                    saver.save(allRecords.get(i), fileName, FileMode.APPEND);
-                } else {
-                    saver.save(allRecords.get(i), fileName, FileMode.CREATE);
+            if (threads > 1) {
+                PollService scheduler = new PollService(
+                        threads, interval, service, saver, fileName, FileMode.CREATE
+                );
+
+                scheduler.start(apiTypes);
+
+                System.out.println("Polling for " + duration + " s");
+
+                CountDownLatch latch = new CountDownLatch(1);
+                Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                    if (scheduler.isRunning()) {
+                        scheduler.stop();
+                    }
+                    latch.countDown();
+                }));
+
+                if (!latch.await(duration, TimeUnit.SECONDS)) {
+                    scheduler.stop();
+                }
+            } else {
+                List<ApiRecord> allRecords = getApiRecords(apiTypes, service);
+                for (int i = 0; i < allRecords.size(); i++) {
+                    if (i > 0) {
+                        saver.save(allRecords.get(i), fileName, FileMode.APPEND);
+                    } else {
+                        saver.save(allRecords.get(i), fileName, FileMode.CREATE);
+                    }
                 }
             }
 
             System.out.println("===== Done ======");
-        } else {
-            throw new IllegalArgumentException("Not enough arguments");
         }
     }
 
-    private static List<ApiRecord> getApiRecords(List<ApiType> apiTypes) {
+    private static long getDuration(String[] args, int threads, long interval) {
+        try {
+            long duration = args.length >= 5 ? Long.parseLong(args[4]) : 30;
+
+            if (threads < 1) {
+                throw new IllegalArgumentException("Number of threads must be greater than 0");
+            }
+
+            if (interval < 0) {
+                throw new IllegalArgumentException("Interval must be greater than 0");
+            }
+
+            return duration;
+        }
+        catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Duration must be a number");
+        }
+    }
+
+    private static List<ApiRecord> getApiRecords(List<ApiType> apiTypes, ApiService service) {
         List<ApiRecord> allRecords = new ArrayList<>();
 
-        ApiService service = new ApiService();
-
         for (ApiType apiType : apiTypes) {
-            ApiSource api = switch (apiType) {
-                case WEATHER -> new WeatherApi();
-                case MUSEUM -> new MuseumApi();
-                case COUNTRIES -> new CountriesApi();
-            };
+            ApiSource api = ApiFactory.newSource(apiType);
 
             ApiRecord record;
             try {
