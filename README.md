@@ -8,10 +8,13 @@ Java service for collecting, normalizing, and saving data from various APIs. Sup
 - **Two run modes:**
   - Automatic
     Accepts the following input parameters:
-    List of APIs
-    Output file format(JSON/CSV)
+    - List of APIs
+    - Output file format(JSON/CSV)
+    - Max number of threads
+    - Poll interval
   - Interactive
-    User can choose API, output file format, file write mode and read the output file
+    User can choose API, output file format, file write mode and read the output file.
+    User can also choose how to run the application: in single-thread mode or  multithread mode. User chooses max number of threads and poll         interval in multithread mode.
 - **Two output file formats:**
   - JSON
   - CSV
