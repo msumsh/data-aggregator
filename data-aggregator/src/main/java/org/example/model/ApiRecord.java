@@ -58,6 +58,9 @@ public class ApiRecord {
 
     @JsonIgnore
     public String getFormattedTimestamp() {
+        if (timestamp == null) {
+            return "";
+        }
         return TIMESTAMP_FORMATTER.format(timestamp);
     }
 }

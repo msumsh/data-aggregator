@@ -17,10 +17,14 @@ public class ApiService {
     private final HttpClient httpClient;
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(60);
 
+    public ApiService(HttpClient httpClient) {
+        this.httpClient = Objects.requireNonNull(httpClient);
+    }
+
     public ApiService() {
-        this.httpClient = HttpClient.newBuilder()
+        this(HttpClient.newBuilder()
                 .followRedirects(HttpClient.Redirect.NORMAL)
-                .build();
+                .build());
     }
 
     public ApiRecord fetchData(ApiSource source) throws InvalidResponseException, SendingHttpRequestException, IOException {

@@ -17,9 +17,11 @@ public class Main {
         try {
             RunMode mode = menu.selectRunMode();
             if (mode == RunMode.AUTO) {
-                Auto.runAuto(args);
+                Auto auto = new Auto();
+                auto.runAuto(args);
             } else {
-                Interactive.runInteractive(menu);
+                Interactive interactive = new Interactive();
+                interactive.runInteractive(menu);
             }
         } catch (IOException e) {
             System.err.println("IO Error: " + e.getMessage());

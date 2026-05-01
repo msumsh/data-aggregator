@@ -13,6 +13,7 @@ import org.example.output.DataSaver;
 import org.example.service.ApiService;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -23,51 +24,59 @@ public class PollService {
     private final long intervalSeconds;
 
     private final ApiService apiService;
+    private final ApiFactory apiFactory;
     private final DataSaver dataSaver;
     private final String fileName;
     private final FileMode initialMode;
 
     private final AtomicBoolean firstWriteDone = new AtomicBoolean(false);
-    private volatile boolean running = false;
+    private final AtomicBoolean running = new AtomicBoolean(false);
 
     private ScheduledExecutorService scheduler;
 
-    private final Map<ApiType, Integer> apisCount = new ConcurrentHashMap<>();
-
     public PollService(int maxThreads, long intervalSeconds,
-                       ApiService apiService, DataSaver dataSaver,
+                       ApiService apiService, ApiFactory apiFactory, DataSaver dataSaver,
                        String fileName, FileMode initialMode) {
         this.maxThreads = maxThreads;
         this.intervalSeconds = intervalSeconds;
         this.apiService = apiService;
+        this.apiFactory = apiFactory;
         this.dataSaver = dataSaver;
         this.fileName = fileName;
         this.initialMode = initialMode;
     }
 
     public void start(List<ApiType> apiTypes) {
-        if (running) return;
-        running = true;
+        if (running.get()) return;
+        running.compareAndSet(false, true);
 
         scheduler = Executors.newScheduledThreadPool(maxThreads);
 
-        for (ApiType apiType : apiTypes) {
-            int index = apisCount.getOrDefault(apiType, 0);
-            apisCount.put(apiType, index + 1);
+        Map<ApiType, Integer> apiCounts = new HashMap<>();
+        for (ApiType type : apiTypes) {
+            apiCounts.merge(type, 1, Integer::sum);
         }
 
-        for (Map.Entry<ApiType, Integer> entry : apisCount.entrySet()) {
+        for (Map.Entry<ApiType, Integer> entry : apiCounts.entrySet()) {
             ApiType type = entry.getKey();
-            int count = entry.getValue();
-            scheduleApiSeries(type, count, 0);
+            scheduleNext(type, 0);
         }
 
         System.out.println("Polling started. Threads: " + maxThreads + ", interval: " + intervalSeconds + "s");
     }
 
+    private void scheduleNext(ApiType type, long initDelay) {
+        if (!running.get()) return;
+        scheduler.schedule(() -> {
+            if (!running.get()) return;
+            pollAndSave(type);
+            scheduleNext(type, intervalSeconds);
+        }, initDelay, TimeUnit.SECONDS);
+    }
+
     public void stop() {
-        if (!running) return;
-        running = false;
+        if (!running.get()) return;
+        running.compareAndSet(true, false);
 
         scheduler.shutdown();
 
@@ -84,11 +93,11 @@ public class PollService {
     }
 
     public boolean isRunning() {
-        return running;
+        return running.get();
     }
 
     private void pollAndSave(ApiType apiType) {
-        ApiSource api = ApiFactory.newSource(apiType);
+        ApiSource api = apiFactory.newSource(apiType);
 
         try {
             ApiRecord record = apiService.fetchData(api);
@@ -101,19 +110,5 @@ public class PollService {
         } catch (SavingJsonException | SavingCsvException e) {
             System.err.println(apiType.getDisplayName() + " save error: " + e.getMessage());
         }
-    }
-
-    private void scheduleApiSeries(ApiType apiType, int remainingRequests, long delay) {
-        scheduler.schedule(() -> {
-            if (!running) return;
-
-            pollAndSave(apiType);
-
-            if (remainingRequests > 1) {
-                scheduleApiSeries(apiType, remainingRequests - 1, intervalSeconds);
-            } else {
-                scheduleApiSeries(apiType, apisCount.getOrDefault(apiType, 1), intervalSeconds);
-            }
-        }, delay, TimeUnit.SECONDS);
     }
 }

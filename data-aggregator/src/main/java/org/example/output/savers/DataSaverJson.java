@@ -19,13 +19,13 @@ public class DataSaverJson extends DataSaver {
     public void save(ApiRecord record, String fileName, FileMode mode) throws SavingJsonException, IOException {
         FILE_LOCK.lock();
         try {
-            Path path = Paths.get(DEFAULT_DIR + "json/", fileName);
+            Path path = Paths.get(getBaseDir() + "json/", fileName);
 
             if (path.getParent() != null) {
                 Files.createDirectories(path.getParent());
             }
 
-            boolean append = (mode == FileMode.APPEND && Files.exists(path) && Files.size(path) > 0);
+            boolean append = (mode == FileMode.APPEND && Files.exists(path));
 
             if (append) {
                 appendMode(path, null, record);
@@ -42,7 +42,7 @@ public class DataSaverJson extends DataSaver {
         FILE_LOCK.lock();
 
         try {
-            Path path = Paths.get(DEFAULT_DIR + "json/", fileName);
+            Path path = Paths.get(getBaseDir() + "json/", fileName);
 
             System.out.println("\n===== File Content: " + fileName + " =====");
 

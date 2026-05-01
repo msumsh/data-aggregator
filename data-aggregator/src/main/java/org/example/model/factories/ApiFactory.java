@@ -7,7 +7,7 @@ import org.example.api.types.WeatherApi;
 import org.example.model.apitype.ApiType;
 
 public class ApiFactory {
-    public static ApiSource newSource(ApiType type) {
+    public ApiSource newSource(ApiType type) {
         return switch (type) {
             case WEATHER -> new WeatherApi();
             case MUSEUM -> new MuseumApi();

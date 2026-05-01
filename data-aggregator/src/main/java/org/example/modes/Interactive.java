@@ -1,35 +1,42 @@
 package org.example.modes;
 
-import org.example.api.ApiSource;
 import org.example.cli.Menu;
 import org.example.concurrent.PollService;
 import org.example.exceptions.data.SavingCsvException;
 import org.example.exceptions.data.SavingJsonException;
 import org.example.exceptions.input.InvalidUserInputException;
-import org.example.exceptions.request.InvalidResponseException;
-import org.example.exceptions.request.SendingHttpRequestException;
+import org.example.execution.JobExecutor;
 import org.example.model.*;
 import org.example.model.apitype.ApiType;
-import org.example.model.factories.ApiFactory;
 import org.example.model.factories.SaverFactory;
 import org.example.model.format.FileFormat;
 import org.example.model.modes.FileMode;
 import org.example.model.modes.PollingMode;
 import org.example.model.modes.ReadMode;
 import org.example.output.DataSaver;
-import org.example.service.ApiService;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
 public class Interactive {
-    public static void runInteractive(Menu menu) throws
+    private final SaverFactory saverFactory;
+    private final JobExecutor exec;
+
+    public Interactive() {
+        this(new SaverFactory(), new JobExecutor());
+    }
+
+    public Interactive(SaverFactory saverFactory, JobExecutor exec) {
+        this.saverFactory = saverFactory;
+        this.exec = exec;
+    }
+
+    public void runInteractive(Menu menu) throws
             InvalidUserInputException,
             IOException,
             SavingJsonException,
             SavingCsvException {
-        ApiService service = new ApiService();
-
         PollService[] schedulerRef = {null};
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             if (schedulerRef[0] != null && schedulerRef[0].isRunning()) {
@@ -46,10 +53,12 @@ public class Interactive {
                     next = menu.wantToDo("\nDo you want to continue?");
                     continue;
                 }
-                singleMode(menu, service);
+
+                singleMode(menu);
+
                 next = menu.wantToDo("\nDo you want to continue?");
             } else if (poll == PollingMode.MULTIPLE_START) {
-                schedulerRef[0] = startMode(menu, service, schedulerRef[0]);
+                schedulerRef[0] = startMode(menu, schedulerRef[0]);
                 next = menu.wantToDo("\nDo you want to continue?");
             }  else if (poll == PollingMode.MULTIPLE_STOP) {
                 schedulerRef[0] = stopMode(schedulerRef[0]);
@@ -58,51 +67,27 @@ public class Interactive {
         }
 
         if (schedulerRef[0] != null && schedulerRef[0].isRunning()) {
-            schedulerRef[0].stop();
+            schedulerRef[0] = stopMode(schedulerRef[0]);
         }
     }
 
-    private static void singleMode(Menu menu, ApiService service) throws InvalidUserInputException,
-            SavingJsonException,
-            IOException {
+    private void singleMode(Menu menu) throws InvalidUserInputException, SavingCsvException, SavingJsonException, IOException {
         ApiType apiType = menu.selectApi();
-        ApiSource api = ApiFactory.newSource(apiType);
-
-        ApiRecord record;
-        try {
-            record = service.fetchData(api);
-        } catch (InvalidResponseException e) {
-            System.err.println("Invalid response for " + apiType.getDisplayName() + ": " + e.getMessage());
-            return;
-        } catch (SendingHttpRequestException e) {
-            System.err.println("Failed to send request " + apiType.getDisplayName() + ": " + e.getMessage());
-            return;
-        } catch (IOException e) {
-            System.err.println("Failed parse response " + apiType.getDisplayName() + ": " + e.getMessage());
-            return;
-        }
-
         FileFormat format = menu.selectFileFormat();
         FileMode fileMode = menu.selectFileMode();
-
         String fileName = menu.getFileName();
 
-        DataSaver saver = SaverFactory.newSaver(format);
+        DataSaver saver = saverFactory.newSaver(format);
 
-        saver.save(record, fileName + "." + format.getFormat(), fileMode);
-        boolean read = menu.wantToDo("\nDo you want to read the file?");
-        if (read) {
-            ReadMode readMode = menu.selectReadMode();
-            if (readMode == ReadMode.FULL) {
-                saver.read(fileName + "." + format.getFormat(), null);
-            } else {
-                ApiType readApiType = menu.selectApi();
-                saver.read(fileName + "." + format.getFormat(), readApiType.getCodeName());
-            }
-        }
+        exec.executeSingle(Collections.singletonList(apiType), format,
+                fileMode,
+                fileName,
+                saver);
+
+        fileRead(menu, format, fileName, saver);
     }
 
-    private static PollService startMode(Menu menu, ApiService service, PollService scheduler) throws InvalidUserInputException, IOException {
+    private PollService startMode(Menu menu, PollService scheduler) throws InvalidUserInputException, IOException {
         if (scheduler != null && scheduler.isRunning()) {
             System.out.println("Polling is already running. Stop it first.");
             return scheduler;
@@ -115,15 +100,27 @@ public class Interactive {
         FileMode   fileMode = menu.selectFileMode();
         String     fileName = menu.getFileName();
 
-        DataSaver saver = SaverFactory.newSaver(format);
+        DataSaver saver = saverFactory.newSaver(format);
 
-        scheduler = new PollService(
-                threads, interval, service, saver,
-                fileName + "." + format.getFormat(), fileMode
-        );
+        scheduler = exec.startMulti(threads,
+                interval,
+                apis,
+                format,
+                fileMode,
+                fileName,
+                saver);
 
-        scheduler.start(apis);
+        fileRead(menu, format, fileName, saver);
 
+        return scheduler;
+    }
+
+    private PollService stopMode(PollService scheduler) {
+        exec.stopMulti(scheduler);
+        return null;
+    }
+
+    private void fileRead(Menu menu, FileFormat format, String fileName, DataSaver saver) throws IOException, InvalidUserInputException {
         boolean read = menu.wantToDo("\nDo you want to read the file?");
         if (read) {
             ReadMode readMode = menu.selectReadMode();
@@ -134,18 +131,5 @@ public class Interactive {
                 saver.read(fileName + "." + format.getFormat(), readApiType.getCodeName());
             }
         }
-
-        return scheduler;
-    }
-
-    private static PollService stopMode(PollService scheduler) {
-        if (scheduler == null || !scheduler.isRunning()) {
-            System.out.println("Polling is not running.");
-            return scheduler;
-        }
-
-        scheduler.stop();
-
-        return null;
     }
 }

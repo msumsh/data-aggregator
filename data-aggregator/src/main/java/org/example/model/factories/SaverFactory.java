@@ -6,7 +6,7 @@ import org.example.output.savers.DataSaverCsv;
 import org.example.output.savers.DataSaverJson;
 
 public class SaverFactory {
-    public static DataSaver newSaver(FileFormat format) {
+    public DataSaver newSaver(FileFormat format) {
         return switch (format) {
             case JSON -> new DataSaverJson();
             case CSV -> new DataSaverCsv();

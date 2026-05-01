@@ -55,4 +55,7 @@ public abstract class DataSaver {
         throw new IOException("failed to parse JSON file to List");
     }
 
+    protected String getBaseDir() {
+        return DEFAULT_DIR;
+    }
 }

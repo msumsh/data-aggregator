@@ -19,6 +19,10 @@ public class Menu {
         this.scanner = new Scanner(System.in);
     }
 
+    public Menu(Scanner scanner) {
+        this.scanner = scanner;
+    }
+
     public RunMode selectRunMode() throws InvalidUserInputException {
         return selectEnum("run mode", RunMode.class, "invalid run mode");
     }
