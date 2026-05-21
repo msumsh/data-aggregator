@@ -28,3 +28,22 @@ Java service for collecting, normalizing, and saving data from various APIs. Sup
  - Maven
  - Jackson
  - OpenCSV
+ - IntelliJ IDEA
+
+### Build & Run
+
+The project uses Maven for building. Compile and package the application with:
+```bash
+mvn clean package
+```
+
+To start the application:
+```bash
+java -jar ./target/data-aggregator.jar
+```
+In automatic mode, pass command-line arguments at startup using the following format:
+```bash
+java -jar ./target/data-aggregator.jar <api_list> <file_format> <thread_count> <poll_interval> <poll_duration>
+```
+
+
